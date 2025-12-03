@@ -1,0 +1,18 @@
+﻿{
+  "name": "com.kykaroo.netcode",
+  "version": "1.0.0",
+  "displayName": "Netcode",
+  "description": "Netcode for Unity",
+  "unity": "2022.3",
+  "author": {
+    "name": "kykaroo",
+    "email": "boris_nemcev@bk.ru"
+  },
+  "samples": [
+    {
+      "displayName": "Client example",
+      "description": "Client usage example",
+      "path": "Samples~/ClientSample"
+    }
+  ]
+}
