@@ -1,6 +1,6 @@
 ﻿using System.Net;
 
-namespace NetcodePackage.Runtime
+namespace com.kykaroo.netcode.Runtime
 {
     public class NetworkManager
     {
@@ -15,8 +15,10 @@ namespace NetcodePackage.Runtime
             _registry = registry;
         }
 
-        public void SendReliable(INetworkPacket packet) => _tcp.SendAsync(packet).Forget();
-        public void SendUnreliable(INetworkPacket packet) => _udp.SendAsync(packet).Forget();
+        public void EnqueueReliable(INetworkPacket packet) => _ = _tcp.EnqueueSendAsync(packet);
+        public void SendImmediate(INetworkPacket packet) => _ = _tcp.SendImmediateAsync(packet);
+        public void FlushReliable() => _tcp.Flush();
+        public void SendUnreliable(INetworkPacket packet) => _ = _udp.SendAsync(packet);
 
         public void StartListening()
         {

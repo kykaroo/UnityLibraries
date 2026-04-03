@@ -1,10 +1,15 @@
 ﻿using System;
+using System.Buffers;
+using System.Buffers.Binary;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 using System.Net.Sockets;
-using Cysharp.Threading.Tasks;
+using System.Threading;
+using System.Threading.Tasks;
 using UnityEngine;
 
-namespace NetcodePackage.Runtime
+namespace com.kykaroo.netcode.Runtime
 {
     public class TcpChannel
     {
@@ -12,6 +17,10 @@ namespace NetcodePackage.Runtime
         private readonly TcpClient _client;
         private NetworkStream _stream;
         private bool _isListening;
+        private readonly MemoryStream _sendBuffer = new(4096);
+        private readonly object _sendLock = new();
+        private readonly ConcurrentQueue<byte[]> _sendQueue = new();
+        private readonly SemaphoreSlim _sendSignal = new(0);
 
         public TcpChannel(TcpClient client, PacketRegistry packetRegistry)
         {
@@ -19,7 +28,7 @@ namespace NetcodePackage.Runtime
             _packetRegistry = packetRegistry;
         }
 
-        public async UniTaskVoid SendAsync(INetworkPacket packet)
+        public async Task SendImmediateAsync(INetworkPacket packet)
         {
             if (_isListening == false) return;
 
@@ -33,8 +42,22 @@ namespace NetcodePackage.Runtime
 
                 var data = ms.ToArray();
 
-                await _stream.WriteAsync(data, 0, data.Length);
-                await _stream.FlushAsync();
+                var lengthBytes = ArrayPool<byte>.Shared.Rent(2);
+
+                try
+                {
+                    BinaryPrimitives.WriteUInt16LittleEndian(lengthBytes, (ushort)data.Length);
+
+                    var packetToSend = new byte[2 + data.Length];
+                    Buffer.BlockCopy(lengthBytes, 0, packetToSend, 0, 2);
+                    Buffer.BlockCopy(data, 0, packetToSend, 2, data.Length);
+
+                    EnqueueTickBuffer(packetToSend);
+                }
+                finally
+                {
+                    ArrayPool<byte>.Shared.Return(lengthBytes);
+                }
             }
             catch (ObjectDisposedException)
             {
@@ -58,6 +81,84 @@ namespace NetcodePackage.Runtime
             }
         }
 
+        public async Task EnqueueSendAsync(INetworkPacket packet)
+        {
+            if (_isListening == false) return;
+
+            try
+            {
+                using var ms = new MemoryStream();
+                await using var writer = new BinaryWriter(ms);
+
+                writer.Write(packet.Id);
+                packet.Serialize(writer);
+
+                var data = ms.ToArray();
+
+                var lengthBytes = ArrayPool<byte>.Shared.Rent(2);
+
+                try
+                {
+                    BinaryPrimitives.WriteUInt16LittleEndian(lengthBytes, (ushort)data.Length);
+
+                    lock (_sendLock)
+                    {
+                        _sendBuffer.Write(lengthBytes, 0, 2);
+                        _sendBuffer.Write(data, 0, data.Length);
+                    }
+                }
+                finally
+                {
+                    ArrayPool<byte>.Shared.Return(lengthBytes);
+                }
+            }
+            catch (ObjectDisposedException)
+            {
+                Debug.LogError("[TCP] Stream closed, disconnecting...");
+                HandleDisconnect();
+            }
+            catch (IOException ioEx)
+            {
+                Debug.LogError($"[TCP] IO error while sending: {ioEx.Message}");
+                HandleDisconnect();
+            }
+            catch (SocketException sockEx)
+            {
+                Debug.LogError($"[TCP] Socket error while sending: {sockEx.SocketErrorCode}");
+                HandleDisconnect();
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[TCP] Unexpected send error: {ex}");
+                HandleDisconnect();
+            }
+        }
+
+        private async Task SendLoopAsync()
+        {
+            while (_isListening)
+            {
+                await _sendSignal.WaitAsync();
+
+                while (_sendQueue.TryDequeue(out var data))
+                {
+                    try
+                    {
+                        await _stream.WriteAsync(data, 0, data.Length);
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.LogError($"[TCP] SendLoop error: {e}");
+                        HandleDisconnect();
+
+                        return;
+                    }
+                }
+
+                await _stream.FlushAsync();
+            }
+        }
+
         private void HandleDisconnect()
         {
             _isListening = false;
@@ -67,18 +168,20 @@ namespace NetcodePackage.Runtime
         {
             _isListening = true;
             _stream = _client.GetStream();
-            UniTask.RunOnThreadPool(() => ListenLoop(onPacket));
+            _ = Task.Run(() => _ = ListenLoop(onPacket));
+            _ = Task.Run(() => _ = SendLoopAsync());
         }
 
-        private async UniTaskVoid ListenLoop(Action<INetworkPacket> onPacket)
+        private async Task ListenLoop(Action<INetworkPacket> onPacket)
         {
-            var lengthBuffer = new byte[2];
+            var buffer = new byte[4096];
+            var leftover = new List<byte>();
 
             try
             {
                 while (_isListening)
                 {
-                    var bytesRead = await ReadExactAsync(_stream, lengthBuffer, 0, 2);
+                    var bytesRead = await _stream.ReadAsync(buffer.AsMemory(0, buffer.Length));
 
                     if (bytesRead == 0)
                     {
@@ -88,28 +191,31 @@ namespace NetcodePackage.Runtime
                         break;
                     }
 
-                    var length = BitConverter.ToUInt16(lengthBuffer, 0);
-                    var data = new byte[length];
+                    leftover.AddRange(buffer[..bytesRead]);
 
-                    bytesRead = await ReadExactAsync(_stream, data, 0, length);
-
-                    if (bytesRead == 0)
+                    while (leftover.Count >= 2)
                     {
-                        Debug.LogError("[TCP] Connection closed during packet read.");
+                        var length = BitConverter.ToUInt16(leftover.ToArray(), 0);
 
-                        HandleDisconnect();
+                        if (leftover.Count < 2 + length)
+                        {
+                            break;
+                        }
 
-                        break;
+                        var packetData = leftover.GetRange(2, length).ToArray();
+
+                        using var ms = new MemoryStream(packetData);
+                        using var br = new BinaryReader(ms);
+
+                        var id = br.ReadUInt16();
+                        var packet = _packetRegistry.Create(id);
+                        packet?.Deserialize(br);
+
+                        if (packet != null)
+                            onPacket?.Invoke(packet);
+
+                        leftover.RemoveRange(0, 2 + length);
                     }
-
-                    using var ms = new MemoryStream(data);
-                    using var br = new BinaryReader(ms);
-
-                    var id = br.ReadUInt16();
-                    var packet = _packetRegistry.Create(id);
-
-                    packet?.Deserialize(br);
-                    UniTask.Post(() => { onPacket?.Invoke(packet); });
                 }
             }
             catch (Exception e)
@@ -120,7 +226,7 @@ namespace NetcodePackage.Runtime
             }
         }
 
-        private async UniTask<int> ReadExactAsync(NetworkStream stream, byte[] buffer, int offset, int count)
+        private async Task<int> ReadExactAsync(NetworkStream stream, byte[] buffer, int offset, int count)
         {
             var totalRead = 0;
 
@@ -136,9 +242,37 @@ namespace NetcodePackage.Runtime
                 totalRead += read;
             }
 
+            if (totalRead == 0)
+            {
+                Debug.LogError("error");
+            }
+
             return totalRead;
         }
 
         public void Stop() => HandleDisconnect();
+
+        public void Flush()
+        {
+            byte[] dataToSend;
+
+            lock (_sendLock)
+            {
+                if (_sendBuffer.Length == 0)
+                    return;
+
+                dataToSend = _sendBuffer.ToArray();
+                _sendBuffer.SetLength(0);
+                _sendBuffer.Position = 0;
+            }
+
+            EnqueueTickBuffer(dataToSend);
+        }
+
+        private void EnqueueTickBuffer(byte[] buffer)
+        {
+            _sendQueue.Enqueue(buffer);
+            _sendSignal.Release();
+        }
     }
 }

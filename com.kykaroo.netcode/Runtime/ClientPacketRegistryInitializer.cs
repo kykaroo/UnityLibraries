@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace NetcodePackage.Runtime
+namespace com.kykaroo.netcode.Runtime
 {
     public class ClientPacketRegistryInitializer
     {

@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using JetBrains.Annotations;
 
-namespace NetcodePackage.Runtime
+namespace com.kykaroo.netcode.Runtime
 {
     public class PacketRegistry
     {

@@ -3,10 +3,11 @@ using System.Buffers;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
-using Cysharp.Threading.Tasks;
+using System.Threading;
+using System.Threading.Tasks;
 using UnityEngine;
 
-namespace NetcodePackage.Runtime
+namespace com.kykaroo.netcode.Runtime
 {
     public class UdpChannel
     {
@@ -17,6 +18,8 @@ namespace NetcodePackage.Runtime
 
         private bool _isListening;
 
+        private readonly SynchronizationContext _unityContext = SynchronizationContext.Current;
+
         public UdpChannel(UdpClient udp, IPEndPoint remote, PacketRegistry packetRegistry)
         {
             _udp = udp;
@@ -26,7 +29,7 @@ namespace NetcodePackage.Runtime
             _isListening = true;
         }
 
-        public async UniTaskVoid SendAsync(INetworkPacket packet)
+        public async Task SendAsync(INetworkPacket packet)
         {
             try
             {
@@ -77,10 +80,10 @@ namespace NetcodePackage.Runtime
         public void StartListening(Action<IPEndPoint, INetworkPacket> onPacket)
         {
             _isListening = true;
-            ListenAsync(onPacket).Forget();
+            _ = ListenAsync(onPacket);
         }
 
-        private async UniTaskVoid ListenAsync(Action<IPEndPoint, INetworkPacket> onPacket)
+        private async Task ListenAsync(Action<IPEndPoint, INetworkPacket> onPacket)
         {
             while (_isListening)
             {
@@ -88,7 +91,7 @@ namespace NetcodePackage.Runtime
                 {
                     var result = await _udp.ReceiveAsync();
 
-                    UniTask.Post(() =>
+                    _unityContext.Post(_ =>
                     {
                         using var ms = new MemoryStream(result.Buffer);
                         using var r = new BinaryReader(ms);
@@ -100,7 +103,7 @@ namespace NetcodePackage.Runtime
 
                         packet.Deserialize(r);
                         onPacket?.Invoke(_remote, packet);
-                    });
+                    }, null);
                 }
                 catch (ObjectDisposedException)
                 {
@@ -121,7 +124,7 @@ namespace NetcodePackage.Runtime
                 catch (Exception e)
                 {
                     Debug.LogError($"[UDP] Listen error: {e.Message}");
-                    await UniTask.Yield();
+                    await Task.Yield();
                 }
             }
         }
