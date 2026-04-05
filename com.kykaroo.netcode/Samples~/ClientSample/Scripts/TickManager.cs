@@ -3,7 +3,7 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 using Debug = UnityEngine.Debug;
 
-namespace com.kykaroo.netcode.Samples.ClientSample.Scripts
+namespace ClientSample
 {
     public class TickManager
     {

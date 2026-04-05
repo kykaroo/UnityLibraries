@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-namespace com.kykaroo.netcode.Samples.ClientSample.Scripts.MainMenu
+namespace ClientSample
 {
     public class MainMenuPresenter
     {

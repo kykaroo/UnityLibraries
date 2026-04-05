@@ -1,4 +1,4 @@
-﻿namespace com.kykaroo.netcode.Samples.ClientSample.Scripts.Data
+﻿namespace ClientSample
 {
     public class PlayerData
     {

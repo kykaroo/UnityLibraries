@@ -2,7 +2,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace com.kykaroo.netcode.Samples.ClientSample.Scripts.MainMenu
+namespace ClientSample
 {
     public class MainMenuView : MonoBehaviour
     {

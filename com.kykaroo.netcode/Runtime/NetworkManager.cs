@@ -1,6 +1,6 @@
 ﻿using System.Net;
 
-namespace com.kykaroo.netcode.Runtime
+namespace Netcode
 {
     public class NetworkManager
     {

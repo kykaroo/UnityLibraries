@@ -2,14 +2,10 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
-using com.kykaroo.netcode.Samples.ClientSample.Scripts.Data;
-using com.kykaroo.netcode.Samples.ClientSample.Scripts.Objects;
-using com.kykaroo.netcode.Samples.ClientSample.Scripts.Packets;
-using com.kykaroo.netcode.Samples.ClientSample.Scripts.Views;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
-namespace com.kykaroo.netcode.Samples.ClientSample.Scripts
+namespace ClientSample
 {
     public class GameController
     {

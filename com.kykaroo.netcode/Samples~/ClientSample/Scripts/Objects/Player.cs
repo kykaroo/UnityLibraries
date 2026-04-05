@@ -1,7 +1,6 @@
-﻿using com.kykaroo.netcode.Samples.ClientSample.Scripts.Data;
-using UnityEngine;
+﻿using UnityEngine;
 
-namespace com.kykaroo.netcode.Samples.ClientSample.Scripts.Objects
+namespace ClientSample
 {
     public class Player : MonoBehaviour
     {

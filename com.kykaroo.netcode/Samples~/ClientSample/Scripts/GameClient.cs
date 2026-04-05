@@ -4,12 +4,11 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
-using com.kykaroo.netcode.Runtime;
-using com.kykaroo.netcode.Samples.ClientSample.Scripts.Packets;
+using Netcode;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
 
-namespace com.kykaroo.netcode.Samples.ClientSample.Scripts
+namespace ClientSample
 {
     public class GameClient : IDisposable
     {

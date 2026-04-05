@@ -1,6 +1,6 @@
 ﻿using System.IO;
 
-namespace com.kykaroo.netcode.Runtime
+namespace Netcode
 {
     public interface INetworkPacket
     {

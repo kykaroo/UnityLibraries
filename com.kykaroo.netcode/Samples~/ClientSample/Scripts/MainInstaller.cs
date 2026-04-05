@@ -1,13 +1,9 @@
 using System;
 using System.Collections.Generic;
-using com.kykaroo.netcode.Runtime;
-using com.kykaroo.netcode.Samples.ClientSample.Scripts.MainMenu;
-using com.kykaroo.netcode.Samples.ClientSample.Scripts.Objects;
-using com.kykaroo.netcode.Samples.ClientSample.Scripts.Packets;
-using com.kykaroo.netcode.Samples.ClientSample.Scripts.Views;
+using Netcode;
 using UnityEngine;
 
-namespace com.kykaroo.netcode.Samples.ClientSample.Scripts
+namespace ClientSample
 {
     public class MainInstaller : MonoBehaviour
     {

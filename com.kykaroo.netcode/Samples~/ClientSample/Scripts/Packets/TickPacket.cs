@@ -1,7 +1,7 @@
 ﻿using System.IO;
-using com.kykaroo.netcode.Runtime;
+using Netcode;
 
-namespace com.kykaroo.netcode.Samples.ClientSample.Scripts.Packets
+namespace ClientSample
 {
     public class TickPacket : INetworkPacket
     {

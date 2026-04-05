@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-namespace com.kykaroo.netcode.Samples.ClientSample.Scripts.Data
+namespace ClientSample
 {
     public class PlayerInputState
     {

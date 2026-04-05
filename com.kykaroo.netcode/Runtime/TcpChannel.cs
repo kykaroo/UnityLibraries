@@ -9,7 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 
-namespace com.kykaroo.netcode.Runtime
+namespace Netcode
 {
     public class TcpChannel
     {

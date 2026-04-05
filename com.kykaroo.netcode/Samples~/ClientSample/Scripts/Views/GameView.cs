@@ -2,7 +2,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace com.kykaroo.netcode.Samples.ClientSample.Scripts.Views
+namespace ClientSample
 {
     public class GameView : MonoBehaviour
     {

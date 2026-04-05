@@ -1,8 +1,7 @@
 ﻿using System.IO;
-using com.kykaroo.netcode.Runtime;
-using com.kykaroo.netcode.Samples.ClientSample.Scripts.Data;
+using Netcode;
 
-namespace com.kykaroo.netcode.Samples.ClientSample.Scripts.Packets
+namespace ClientSample
 {
     public class WorldDataPacket : INetworkPacket
     {
